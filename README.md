@@ -24,15 +24,3 @@ This is a simple, single-use HTML-based tier list maker. It allows users to uplo
 ### Development
 
 This project is built using plain HTML, CSS, and JavaScript. It utilizes the `html2canvas` library to capture the tier list as an image for download.
-
-### Files
-
-* `Compare.html`: Contains the entire structure, styling, and functionality of the tier list maker.
-
-### Contributions
-
-As this is designed as a simple, single-use tool, contributions are not actively sought. However, feel free to fork the repository and modify it for your own use.
-
-### License
-
-[Specify your desired license here, e.g., MIT, Apache 2.0, etc.]
