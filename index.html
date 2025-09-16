@@ -47,10 +47,54 @@
         body {
             font-family: 'Arial', sans-serif;
             margin: 0;
-            padding: 20px;
+            padding-top: 60px;
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-bottom: 20px;
             background: #f0f2f5;
             color: #333;
             text-align: center;
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: #000;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .theme-toggle {
+            position: absolute;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px;
+        }
+        [data-theme="dark"] {
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        [data-theme="dark"] .tier-list,
+        [data-theme="dark"] .image-pool {
+            background: #2d2d2d;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        [data-theme="dark"] .tier-items {
+            background: #3a3a3a;
+            border-color: #555;
+        }
+        [data-theme="dark"] .header {
+            background: #333;
         }
         h1 {
             font-size: 2.5em;
@@ -200,10 +244,14 @@
         }
     </style>
 </head>
-<body>
+<body data-theme="dark">
+    <div class="header">
+        Tier List Maker
+        <button class="theme-toggle" onclick="toggleTheme()">☀️</button>
+    </div>
     <div class="container">
-        <h1>Single-Use Tier List Maker</h1>
-        <p>Create your own tier list by uploading images and dragging them into tiers. Drag images back to the pool or remove them with the 'x' button. Download your tier list when done!</p>
+
+
         <div class="tier-list" id="tierList">
             <div class="tier-row">
                 <div class="tier-label s">S</div>
@@ -237,36 +285,7 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
-        // Sample images for testing
-        const sampleImages = [
-            'https://via.placeholder.com/80x80/FF0000/FFFFFF?text=Img1',
-            'https://via.placeholder.com/80x80/00FF00/FFFFFF?text=Img2',
-            'https://via.placeholder.com/80x80/0000FF/FFFFFF?text=Img3',
-            'https://via.placeholder.com/80x80/FFFF00/FFFFFF?text=Img4'
-        ];
 
-        // Initialize sample images
-        function initSampleImages() {
-            const imagePool = document.getElementById('imagePool');
-            sampleImages.forEach(src => {
-                const container = document.createElement('div');
-                container.className = 'image-container';
-                container.draggable = true;
-                container.dataset.id = `img-${Math.random().toString(36).substr(2, 9)}`;
-                const img = document.createElement('img');
-                img.src = src;
-                img.className = 'tier-image';
-                const removeBtn = document.createElement('button');
-                removeBtn.className = 'remove-btn';
-                removeBtn.innerText = 'x';
-                removeBtn.onclick = () => removeImage(container);
-                container.appendChild(img);
-                container.appendChild(removeBtn);
-                imagePool.appendChild(container);
-                container.addEventListener('dragstart', dragStart);
-                container.addEventListener('dragend', dragEnd);
-            });
-        }
 
         // Remove image handler
         function removeImage(container) {
@@ -314,10 +333,34 @@
             const target = e.target.closest('.tier-items') || e.target.closest('.image-pool');
             if (target) {
                 target.classList.remove('over');
+                
+                // Handle internal drag and drop
                 const id = e.dataTransfer.getData('text/plain');
                 const draggable = document.querySelector(`[data-id="${id}"]`);
                 if (draggable) {
                     target.appendChild(draggable);
+                    return;
+                }
+                
+                // Handle external files
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    Array.from(files).forEach(file => {
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                createImageContainer(event.target.result, target);
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                    return;
+                }
+                
+                // Handle external URLs
+                const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+                if (url && (url.startsWith('http') || url.startsWith('data:'))) {
+                    createImageContainer(url, target);
                 }
             }
         }
@@ -333,6 +376,27 @@
         imagePool.addEventListener('dragleave', dragLeave);
         imagePool.addEventListener('drop', drop);
 
+        // Create image container helper function
+        function createImageContainer(src, targetContainer) {
+            const container = document.createElement('div');
+            container.className = 'image-container';
+            container.setAttribute('draggable', 'true');
+            container.dataset.id = `img-${Math.random().toString(36).substr(2, 9)}`;
+            const img = document.createElement('img');
+            img.src = src;
+            img.className = 'tier-image';
+            img.onerror = () => container.remove(); // Remove if image fails to load
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerText = 'x';
+            removeBtn.onclick = () => removeImage(container);
+            container.appendChild(img);
+            container.appendChild(removeBtn);
+            targetContainer.appendChild(container);
+            container.addEventListener('dragstart', dragStart);
+            container.addEventListener('dragend', dragEnd);
+        }
+
         // Handle image uploads
         document.getElementById('imageUpload').addEventListener('change', (e) => {
             const files = e.target.files;
@@ -340,24 +404,7 @@
             Array.from(files).forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const container = document.createElement('div');
-                    container.className = 'image-container';
-                    container.setAttribute('draggable', 'true');
-                    container.dataset.id = `img-${Math.random().toString(36).substr(2, 9)}`;
-                    const img = document.createElement('img');
-                    img.src = event.target.result;
-                    img.className = 'tier-image';
-                    const removeBtn = document.createElement('button');
-                    removeBtn.className = 'remove-btn';
-                    removeBtn.innerText = 'x';
-                    removeBtn.onclick = () => removeImage(container);
-                    container.appendChild(img);
-                    container.appendChild(removeBtn);
-                    imagePool.appendChild(container);
-                    setTimeout(() => {
-                        container.addEventListener('dragstart', dragStart);
-                        container.addEventListener('dragend', dragEnd);
-                    }, 0);
+                    createImageContainer(event.target.result, imagePool);
                 };
                 reader.readAsDataURL(file);
             });
@@ -374,8 +421,31 @@
             });
         }
 
-        // Initialize sample images on page load
-        window.onload = initSampleImages;
+        // Theme toggle functionality
+        function toggleTheme() {
+            const body = document.body;
+            const toggle = document.querySelector('.theme-toggle');
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            
+            if (isDark) {
+                body.removeAttribute('data-theme');
+                toggle.textContent = '🌙';
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                toggle.textContent = '☀️';
+            }
+        }
+
+        // Prevent default drag behaviors on document
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+        });
+
+
     </script>
 </body>
 </html>
